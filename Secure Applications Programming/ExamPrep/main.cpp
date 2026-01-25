@@ -1,99 +1,32 @@
-/*
- * main.cpp
- * Demonstration program that:
- *  1) Uses an RSA public key to recover a symmetric key (exam-style example)
- *  2) Uses the recovered key to decrypt an AES/DES-encrypted message
- *
- * Expected files:
- *  - pubISM.pem : PEM encoded RSA public key
- *  - key.sec    : RSA-encrypted symmetric key (binary)
- *  - Msg.enc    : IV || ciphertext (IV size depends on algorithm)
- *
- * Error behavior: exits with non-zero code on failure.
- */
-
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/rsa.h>
-#include <openssl/err.h>
-#include "FileIO.h"
 
-#include "RSAUtils.h"
+// Minimal main: AES-128-CBC decrypt using a hard-coded key and IV (exam-style)
+unsigned char myKey[] = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07, 0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f };
+unsigned char myIV[]  = { 0xa0,0xa1,0xa2,0xa3,0xa4,0xa5,0xa6,0xa7, 0xa8,0xa9,0xaa,0xab,0xac,0xad,0xae,0xaf };
 
-#include "Symmetric.h"
-
-// =============================================================
-// MAIN: PUTTING IT ALL TOGETHER
-// =============================================================
 int main() {
-    // ---------------------------------------------------------
-    // SCENARIO 1: GET THE SYMMETRIC KEY VIA RSA
-    // ---------------------------------------------------------
-    std::cout << "Step 1: RSA Decrypting key.sec...\n";
-    std::vector<unsigned char> recoveredKey = rsaDecryptFile("pubISM.pem", "key.sec");
-    
-    if (recoveredKey.empty()) {
-        // Detailed errors are printed inside rsaDecryptFile
-        return 1;
-    }
-    std::cout << "Key Retrieved! Size: " << recoveredKey.size() << " bytes." << std::endl;
+    // Read file
+    std::ifstream f("Msg.enc", std::ios::binary | std::ios::ate);
+    if (!f.is_open()) { std::cerr << "Could not open Msg.enc" << std::endl; return 1; }
+    std::streamsize s = f.tellg(); f.seekg(0, std::ios::beg);
+    std::vector<unsigned char> enc(static_cast<size_t>(s));
+    if (!f.read(reinterpret_cast<char*>(enc.data()), s)) { std::cerr << "Read error" << std::endl; return 1; }
+    f.close();
 
-    // ---------------------------------------------------------
-    // SCENARIO 2: PREPARE IV AND DATA
-    // ---------------------------------------------------------
-    // Read the encrypted message file. Format used here: IV concatenated with ciphertext.
-    // For AES-CBC the IV length is 16 bytes. For DES/3DES the IV length is 8 bytes.
-    std::vector<unsigned char> fileContent = readFile("Msg.enc");
-    if (fileContent.empty()) {
-        std::cerr << "Failed to read Msg.enc or file empty." << std::endl;
-        return 1;
-    }
-    if (fileContent.size() < 8) { // minimal IV size check
-        std::cerr << "Msg.enc too small to contain an IV and ciphertext." << std::endl;
-        return 1;
-    }
+    // Decrypt
+    std::vector<unsigned char> out(enc.size() + EVP_CIPHER_block_size(EVP_aes_128_cbc()));
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, myKey, myIV);
+    int l1=0, l2=0;
+    EVP_DecryptUpdate(ctx, out.data(), &l1, enc.data(), static_cast<int>(enc.size()));
+    if (EVP_DecryptFinal_ex(ctx, out.data()+l1, &l2) != 1) { std::cerr << "Decryption failed" << std::endl; EVP_CIPHER_CTX_free(ctx); return 2; }
+    EVP_CIPHER_CTX_free(ctx);
 
-    // Choose IV length according to algorithm you plan to use below.
-    int ivLen = 16; // 16 for AES, change to 8 for DES/3DES
-    if (fileContent.size() < ivLen) {
-        std::cerr << "Msg.enc too small for selected IV length (" << ivLen << ")." << std::endl;
-        return 1;
-    }
-
-    // Split IV and Ciphertext
-    std::vector<unsigned char> iv(fileContent.begin(), fileContent.begin() + ivLen);
-    std::vector<unsigned char> ciphertext(fileContent.begin() + ivLen, fileContent.end());
-
-    // ---------------------------------------------------------
-    // SCENARIO 3: DECRYPT (Change Algorithm Here!)
-    // ---------------------------------------------------------
-    std::cout << "Step 2: Decrypting Message...\n";
-
-    // OPTIONS (Uncomment the one you need for the exam):
-    
-    // OPTION A: AES-128
-    auto decrypted = symmetricOperation(ciphertext, recoveredKey, iv, EVP_aes_128_cbc(), 0);
-
-    // OPTION B: DES (Key must be 8 bytes)
-    // auto decrypted = symmetricOperation(ciphertext, recoveredKey, iv, EVP_des_cbc(), 0);
-
-    // OPTION C: 3DES (Key must be 24 bytes)
-    // auto decrypted = symmetricOperation(ciphertext, recoveredKey, iv, EVP_des_ede3_cbc(), 0);
-
-    if (decrypted.empty()) return 1;
-
-    // ---------------------------------------------------------
-    // SCENARIO 4: WRITE TO DISK
-    // ---------------------------------------------------------
-    decrypted.push_back('\0'); // Add null term just for printing to console safely
-    std::cout << "Message: " << decrypted.data() << std::endl;
-    
-    // Remove null terminator before writing to file (to keep file binary pure)
-    decrypted.pop_back(); 
-    writeFile("Msg.dec", decrypted);
-
+    out.resize(l1+l2);
+    out.push_back('\0');
+    std::cout << reinterpret_cast<char*>(out.data()) << std::endl;
     return 0;
 }

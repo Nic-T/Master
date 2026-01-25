@@ -1,0 +1,91 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <cstdlib>
+
+#include "SecureMem.h"
+#include "FileIO.h"
+#include "Symmetric.h"
+
+/**
+ * Example 1: Decrypt a ciphertext file using key and IV supplied as hex in memory.
+ *
+ * Usage:
+ *  - Provide key and iv as environment variables (SYM_KEY_HEX, SYM_IV_HEX),
+ *    or pass them as command-line arguments:
+ *      decrypt_mem <input.enc> <output.dec> [key_hex] [iv_hex]
+ *
+ * Notes:
+ *  - This example expects ciphertext to contain only ciphertext (no IV prefix)
+ *    because the IV is given in memory.
+ */
+int main(int argc, char** argv) {
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <input.enc> <output.dec> [key_hex] [iv_hex]" << std::endl;
+        return 1;
+    }
+
+    const char* inPath = argv[1];
+    const char* outPath = argv[2];
+
+    std::string keyHex;
+    std::string ivHex;
+
+    // Prefer command-line provided hex strings, then environment variables
+    if (argc >= 5) {
+        keyHex = argv[3];
+        ivHex = argv[4];
+    } else {
+        const char* envKey = std::getenv("SYM_KEY_HEX");
+        const char* envIv = std::getenv("SYM_IV_HEX");
+        if (envKey) keyHex = envKey;
+        if (envIv) ivHex = envIv;
+    }
+
+    if (keyHex.empty() || ivHex.empty()) {
+        std::cerr << "Error: key and IV must be provided as hex (env or args)." << std::endl;
+        return 1;
+    }
+
+    auto key = hexToBytes(keyHex);
+    auto iv = hexToBytes(ivHex);
+
+    if (key.empty() || iv.empty()) {
+        std::cerr << "Error: failed to parse key or IV hex." << std::endl;
+        return 1;
+    }
+
+    // Read ciphertext file (assumed to be ciphertext only)
+    std::vector<unsigned char> ciphertext = readFile(inPath);
+    if (ciphertext.empty()) {
+        std::cerr << "Error: failed reading input file or file empty: " << inPath << std::endl;
+        secureClear(key);
+        secureClear(iv);
+        return 1;
+    }
+
+    // Check key/IV sizes for AES-128
+    if (key.size() != 16) std::cerr << "Warning: key size is " << key.size() << " bytes (expected 16 for AES-128)." << std::endl;
+    if (iv.size() != 16) std::cerr << "Warning: IV size is " << iv.size() << " bytes (expected 16 for AES)." << std::endl;
+
+    // Decrypt using AES-128-CBC (adjust algorithm as needed)
+    auto plaintext = symmetricOperation(ciphertext, key, iv, EVP_aes_128_cbc(), 0);
+    if (plaintext.empty()) {
+        std::cerr << "Decryption failed." << std::endl;
+        secureClear(key);
+        secureClear(iv);
+        secureClear(ciphertext);
+        return 1;
+    }
+
+    // Write output and securely clear sensitive buffers
+    writeFile(outPath, plaintext);
+    std::cout << "Decrypted written to: " << outPath << std::endl;
+
+    secureClear(key);
+    secureClear(iv);
+    secureClear(ciphertext);
+    secureClear(plaintext);
+
+    return 0;
+}

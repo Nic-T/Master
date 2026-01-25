@@ -1,0 +1,119 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <cctype>
+
+#include "FileIO.h"
+#include "SecureMem.h"
+#include "Symmetric.h"
+
+/*
+ * Example 2: Encrypt a plaintext file using key and IV read from files.
+ * - The example supports key/iv files that are either raw binary or ASCII hex.
+ * - Output file will contain IV || CIPHERTEXT (to be compatible with prior examples).
+ *
+ * Usage:
+ *   encrypt_file_key_iv <input_plain> <key_file> <iv_file> <output.enc>
+ */
+
+static bool looksLikeHex(const std::vector<unsigned char>& data) {
+    // Accept whitespace and hex chars (0-9, a-f, A-F), optionally with optional leading 0x.
+    bool anyNonSpace = false;
+    for (unsigned char c : data) {
+        if (std::isspace(c)) continue;
+        anyNonSpace = true;
+        if (!std::isxdigit(c)) return false;
+    }
+    return anyNonSpace;
+}
+
+std::vector<unsigned char> parseKeyFile(const std::vector<unsigned char>& raw) {
+    if (raw.empty()) return {};
+    if (looksLikeHex(raw)) {
+        // Convert to string and parse as hex
+        std::string s(reinterpret_cast<const char*>(raw.data()), raw.size());
+        return hexToBytes(s);
+    }
+    // Otherwise treat as raw binary key
+    return raw;
+}
+
+int main(int argc, char** argv) {
+    if (argc != 5) {
+        std::cerr << "Usage: " << argv[0] << " <input_plain> <key_file> <iv_file> <output.enc>" << std::endl;
+        return 1;
+    }
+
+    const char* inPath = argv[1];
+    const char* keyPath = argv[2];
+    const char* ivPath = argv[3];
+    const char* outPath = argv[4];
+
+    auto keyRaw = readFile(keyPath);
+    auto ivRaw = readFile(ivPath);
+
+    // If key/IV files are missing, create demo hex files so example is runnable
+    if (keyRaw.empty()) {
+        std::string demoKeyHex = "00112233445566778899aabbccddeeff";
+        writeFile(keyPath, std::vector<unsigned char>(demoKeyHex.begin(), demoKeyHex.end()));
+        keyRaw = readFile(keyPath);
+        std::cout << "Created demo key file: " << keyPath << std::endl;
+    }
+    if (ivRaw.empty()) {
+        std::string demoIvHex = "0102030405060708090a0b0c0d0e0f10";
+        writeFile(ivPath, std::vector<unsigned char>(demoIvHex.begin(), demoIvHex.end()));
+        ivRaw = readFile(ivPath);
+        std::cout << "Created demo IV file: " << ivPath << std::endl;
+    }
+
+    auto key = parseKeyFile(keyRaw);
+    auto iv = parseKeyFile(ivRaw);
+
+    if (key.empty() || iv.empty()) {
+        std::cerr << "Failed to parse key or IV from files." << std::endl;
+        return 1;
+    }
+
+    // Read plaintext; if plaintext file missing, create a small demo plaintext
+    auto plaintext = readFile(inPath);
+    if (plaintext.empty()) {
+        std::string demoText = "Demo plaintext for encrypt_file_key_iv example\n";
+        writeFile(inPath, std::vector<unsigned char>(demoText.begin(), demoText.end()));
+        plaintext = readFile(inPath);
+        std::cout << "Created demo plaintext file: " << inPath << std::endl;
+    }
+
+    // Check sizes (example uses AES-128 by default)
+    if (key.size() != 16) std::cerr << "Warning: key size is " << key.size() << " bytes (expected 16 for AES-128)." << std::endl;
+    if (iv.size() != 16) std::cerr << "Warning: IV size is " << iv.size() << " bytes (expected 16 for AES)." << std::endl;
+
+    // Encrypt using AES-128-CBC (adjust cipher if key size differs)
+    auto ciphertext = symmetricOperation(plaintext, key, iv, EVP_aes_128_cbc(), 1);
+    if (ciphertext.empty()) {
+        std::cerr << "Encryption failed." << std::endl;
+        secureClear(key);
+        secureClear(iv);
+        secureClear(plaintext);
+        return 1;
+    }
+
+    // Create output buffer: IV || ciphertext
+    std::vector<unsigned char> out;
+    out.reserve(iv.size() + ciphertext.size());
+    out.insert(out.end(), iv.begin(), iv.end());
+    out.insert(out.end(), ciphertext.begin(), ciphertext.end());
+
+    writeFile(outPath, out);
+    std::cout << "Encrypted output (IV||CIPHERTEXT) written to: " << outPath << std::endl;
+
+    // Securely clear sensitive buffers
+    secureClear(key);
+    secureClear(iv);
+    secureClear(keyRaw);
+    secureClear(ivRaw);
+    secureClear(plaintext);
+    secureClear(ciphertext);
+    secureClear(out);
+
+    return 0;
+}
