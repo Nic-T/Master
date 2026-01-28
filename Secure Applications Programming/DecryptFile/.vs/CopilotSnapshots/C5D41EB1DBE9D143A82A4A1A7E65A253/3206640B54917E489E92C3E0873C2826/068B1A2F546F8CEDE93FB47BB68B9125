@@ -1,0 +1,41 @@
+﻿#include <openssl/evp.h>
+#include <iostream>
+#include <fstream>
+#include <vector>
+
+int main() {
+
+    unsigned char key[] = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07, 0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f };
+    unsigned char iv[] = { 0xa0,0xa1,0xa2,0xa3,0xa4,0xa5,0xa6,0xa7, 0xa8,0xa9,0xaa,0xab,0xac,0xad,0xae,0xaf };
+    std::ifstream file("Msg.enc", std::ios::binary | std::ios::ate);
+
+    std::streamsize fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::vector<unsigned char> encData(fileSize);
+    file.read(reinterpret_cast<char*>(encData.data()), fileSize);
+    
+    file.close();
+
+    size_t outSize = fileSize + 16; // AES block size
+    std::vector<unsigned char> decData(outSize);
+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+
+    EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv);
+
+    int len1 = 0;
+    int len2 = 0;
+
+    EVP_DecryptUpdate(ctx, decData.data(), &len1, encData.data(), fileSize);
+
+    EVP_DecryptFinal_ex(ctx, decData.data()+len1,&len2 );
+
+    int totalLen = len1 + len2;
+
+
+
+    std::cout << "Decrypted Data:" << decData.data() << std::endl;
+    EVP_CIPHER_CTX_free(ctx);
+    return 0;
+}

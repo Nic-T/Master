@@ -1,0 +1,54 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Master\\Secure Applications Programming\\DecryptFile\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A1F537CD-4029-496A-B7EC-D8763F24E373}|DecryptFile\\DecryptFile.vcxproj|C:\\Master\\Secure Applications Programming\\DecryptFile\\DecryptFile\\DecryptFile.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{A1F537CD-4029-496A-B7EC-D8763F24E373}|DecryptFile\\DecryptFile.vcxproj|solutionrelative:DecryptFile\\DecryptFile.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A1F537CD-4029-496A-B7EC-D8763F24E373}|DecryptFile\\DecryptFile.vcxproj|C:\\Master\\Secure Applications Programming\\DecryptFile\\DecryptFile\\EncryptFile.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{A1F537CD-4029-496A-B7EC-D8763F24E373}|DecryptFile\\DecryptFile.vcxproj|solutionrelative:DecryptFile\\EncryptFile.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "EncryptFile.cpp",
+              "DocumentMoniker": "C:\\Master\\Secure Applications Programming\\DecryptFile\\DecryptFile\\EncryptFile.cpp",
+              "RelativeDocumentMoniker": "DecryptFile\\EncryptFile.cpp",
+              "ToolTip": "C:\\Master\\Secure Applications Programming\\DecryptFile\\DecryptFile\\EncryptFile.cpp",
+              "RelativeToolTip": "DecryptFile\\EncryptFile.cpp",
+              "ViewState": "AgIAAEgAAAAAAAAAAAAAABEAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-01-26T11:41:51.309Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "DecryptFile.cpp",
+              "DocumentMoniker": "C:\\Master\\Secure Applications Programming\\DecryptFile\\DecryptFile\\DecryptFile.cpp",
+              "RelativeDocumentMoniker": "DecryptFile\\DecryptFile.cpp",
+              "ToolTip": "C:\\Master\\Secure Applications Programming\\DecryptFile\\DecryptFile\\DecryptFile.cpp",
+              "RelativeToolTip": "DecryptFile\\DecryptFile.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-01-26T11:01:23.881Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

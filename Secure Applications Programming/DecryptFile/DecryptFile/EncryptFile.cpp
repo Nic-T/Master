@@ -1,0 +1,81 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <openssl/evp.h>
+#include <cstring>
+
+/*
+ * Minimal encrypt example (exam-style):
+ * - Uses a fixed AES-128 key/IV (shown inline for clarity)
+ * - Encrypts `examples/demo_plain.txt` if present, otherwise uses a small
+ *   built-in demo plaintext and writes ciphertext-only to `Msg.enc`.
+ */
+static const unsigned char key[] = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07, 0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f };
+static const unsigned char iv[] = { 0xa0,0xa1,0xa2,0xa3,0xa4,0xa5,0xa6,0xa7, 0xa8,0xa9,0xaa,0xab,0xac,0xad,0xae,0xaf };
+
+int encrypt() {
+    // Read plaintext from a local demo file if present
+    std::ifstream f("demo.txt", std::ios::binary | std::ios::ate);
+    std::vector<unsigned char> plain;
+
+    if (f) {
+        std::streamsize s = f.tellg(); f.seekg(0, std::ios::beg);
+        if (s > 0) {
+            plain.resize(static_cast<size_t>(s));
+            f.read(reinterpret_cast<char*>(plain.data()), s);
+        }
+        f.close();
+    }
+
+    if (plain.empty()) {
+        // fall back to a short demo plaintext
+        const char* demo = "Demo plaintext\n";
+        plain.assign(demo, demo + std::strlen(demo));
+    }
+
+    // Encrypt with AES-128-CBC using OpenSSL EVP interface
+    std::vector<unsigned char> out(plain.size() + 16);
+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        std::cerr << "Failed to create EVP_CIPHER_CTX" << std::endl;
+        return 1;
+    }
+
+    if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv)) {
+        std::cerr << "EncryptInit failed" << std::endl;
+        EVP_CIPHER_CTX_free(ctx);
+        return 1;
+    }
+
+    int len1 = 0, len2 = 0;
+
+    if (1 != EVP_EncryptUpdate(ctx, out.data(), &len1, plain.data(), static_cast<int>(plain.size()))) {
+        std::cerr << "EncryptUpdate failed" << std::endl;
+        EVP_CIPHER_CTX_free(ctx);
+        return 1;
+    }
+
+    if (1 != EVP_EncryptFinal_ex(ctx, out.data() + len1, &len2)) {
+        std::cerr << "EncryptFinal failed" << std::endl;
+        EVP_CIPHER_CTX_free(ctx);
+        return 1;
+    }
+
+    EVP_CIPHER_CTX_free(ctx);
+
+    out.resize(len1 + len2);
+
+    // Write ciphertext-only (no IV) so decrypt can read it directly
+    std::ofstream o("Msg.enc", std::ios::binary);
+    if (!o) {
+        std::cerr << "Failed to open Msg.enc for writing" << std::endl;
+        return 1;
+    }
+
+    o.write(reinterpret_cast<char*>(out.data()), out.size());
+    o.close();
+
+    std::cout << "Encrypted to Msg.enc (ciphertext only)." << std::endl;
+    return 0;
+}
